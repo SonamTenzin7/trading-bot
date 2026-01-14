@@ -1,0 +1,9 @@
+streamlit
+python-binance
+pandas
+numpy
+ta
+
+scikit-learn
+plotly
+kaleido
