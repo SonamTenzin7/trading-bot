@@ -22,6 +22,20 @@ Green Surge Bolt is a sophisticated, machine-learning-powered cryptocurrency tra
 - **AI Prediction**: Train and run models on specific pairs with configurable lookback and sensitivity.
 - **Risk Management**: Integrated Position Sizing, Stop Loss, and Take Profit sliders.
 
+---
+
+## Trading Terminology
+
+| Parameter | Definition | Purpose |
+| :--- | :--- | :--- |
+| **Training Days Lookback** | The historical window (in days) used to feed the AI model. | **Context**: 30 days looks at recent trends; 365 days looks at long-term patterns. |
+| **Signal Sensitivity (%)** | The % price movement the AI must predict to trigger a signal. | **Aggression**: Lower % (e.g. 0.5%) triggers more trades; Higher % (e.g. 2.0%) is more conservative. |
+| **Position Size (%)** | How much of your total wallet is allocated to a single trade. | **Risk Control**: Limits exposure so one bad trade doesn't wipe out your account. |
+| **Stop Loss (%)** | The % drop at which the bot automatically exits to prevent further loss. | **Defense**: Your "Safety Net" that locks in a maximum acceptable loss. |
+| **Take Profit (%)** | The % gain at which the bot automatically exits to secure winnings. | **Offense**: Ensures you walk away with profit before the market reverses. |
+
+---
+
 ### 2. Performance Page
 - **Global Model Performance**: Track Win Rate (%), Total Trades, and P/L ($) across all coins.
 - **Signal History Audit**: Review the last 20 generated suggestions with precision pricing.
