@@ -7,5 +7,6 @@ ta
 scikit-learn
 plotly
 kaleido
-
-
+sqlalchemy
+pymysql
+python-dotenv

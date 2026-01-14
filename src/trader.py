@@ -53,16 +53,20 @@ class Trader:
                     self.portfolio[coin] = 0
                     self.position = None
                     profit = (current_price - self.entry_price) / self.entry_price
-                    self.trades.append({
+                    pnl_dollars = revenue - (self.entry_price * amount)
+                    trade_info = {
                         'time': timestamp,
                         'symbol': symbol,
                         'action': 'SELL',
                         'price': current_price,
                         'amount': amount,
                         'reason': reason,
-                        'profit_pct': profit
-                    })
+                        'profit_pct': profit,
+                        'pnl': pnl_dollars
+                    }
+                    self.trades.append(trade_info)
                     print(f"SOLD {coin} at {current_price} ({reason}) PnL: {profit*100:.2f}%")
+                    return trade_info
 
         elif self.position is None:
             if signal == 'BUY':
@@ -89,6 +93,7 @@ class Trader:
                         'profit_pct': 0
                     })
                     print(f"BOUGHT {coin} at {current_price}. SL: {self.stop_loss}, TP: {self.take_profit}")
+        return None
 
     def get_portfolio_value(self, current_prices):
         val = self.portfolio["USDT"]

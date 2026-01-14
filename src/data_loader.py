@@ -1,45 +1,80 @@
 import pandas as pd
 from binance.client import Client
-from binance.enums import *
 import os
-from datetime import datetime
 import time
+from datetime import datetime, timedelta
+from src.database import DatabaseManager
 
 class BinanceLoader:
     def __init__(self, api_key=None, api_secret=None):
         self.client = Client(api_key, api_secret)
-        self.cache_dir = "data_cache"
-        if not os.path.exists(self.cache_dir):
-            os.makedirs(self.cache_dir)
+        self.db = DatabaseManager()
 
-    def fetch_data(self, symbol="BTCUSDT", interval=Client.KLINE_INTERVAL_1HOUR, limit=1000):
+    def get_data(self, symbol: str, interval: str, lookback_days: int) -> pd.DataFrame:
         """
-        Fetches historical klines from Binance.
+        Fetches historical data from Database or Binance.
+        Implements incremental fetching.
         """
-        print(f"Fetching {limit} records for {symbol} at {interval} interval...")
+        # 1. Check DB for existing data
+        df_db = self.db.get_ohlcv(symbol, interval)
+        last_ts = self.db.get_last_timestamp(symbol, interval)
         
-        try:
-            klines = self.client.get_klines(symbol=symbol, interval=interval, limit=limit)
-        except Exception as e:
-            print(f"Error fetching data: {e}")
-            return None
+        start_str = f"{lookback_days} days ago UTC"
+        
+        # 2. Determine if we have "Enough" data
+        # If DB has significantly fewer days than requested, do a full fetch
+        has_enough = False
+        if not df_db.empty:
+            earliest_ts = df_db.index[0]
+            days_available = (datetime.utcnow() - earliest_ts).days
+            # If we have at least 80% of what was requested, we consider it "Incremental"
+            if days_available >= (lookback_days * 0.8):
+                has_enough = True
+        
+        if not has_enough:
+            try:
+                klines = self.client.get_historical_klines(symbol, interval, start_str)
+                df = self._process_candles(klines)
+                if not df.empty:
+                    self.db.save_ohlcv(symbol, interval, df)
+                    return df
+            except Exception as e:
+                print(f"Error fetching full data: {e}")
+                if df_db.empty: return pd.DataFrame()
 
-        # Create DataFrame
+        # 3. If we have enough but it's old, do incremental update
+        if last_ts:
+            now = datetime.utcnow()
+            # If last candle is older than the interval, fetch more
+            fetch_start = last_ts + timedelta(minutes=1) 
+            
+            if (now - last_ts).total_seconds() > 60: # Simple freshness check
+                try:
+                    new_candles = self.client.get_historical_klines(symbol, interval, fetch_start.strftime("%d %b, %Y %H:%M:%S"))
+                    if new_candles:
+                        df_new = self._process_candles(new_candles)
+                        self.db.save_ohlcv(symbol, interval, df_new)
+                        # Refresh from DB
+                        df_db = self.db.get_ohlcv(symbol, interval, limit=2000)
+                except Exception as e:
+                    print(f"Error fetching incremental data: {e}")
+        
+        # Return DB data filtered by lookback
+        cutoff = datetime.utcnow() - timedelta(days=lookback_days)
+        return df_db[df_db.index >= cutoff]
+
+    def _process_candles(self, klines) -> pd.DataFrame:
         df = pd.DataFrame(klines, columns=[
             'timestamp', 'open', 'high', 'low', 'close', 'volume',
-            'close_time', 'quote_asset_volume', 'number_of_trades',
-            'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+            'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'
         ])
-
-        # Convert types
+        
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        for col in ['open', 'high', 'low', 'close', 'volume']:
-            df[col] = df[col].astype(float)
-            
-        df = df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
         df.set_index('timestamp', inplace=True)
         
-        return df
+        cols = ['open', 'high', 'low', 'close', 'volume']
+        df[cols] = df[cols].astype(float)
+        return df[cols]
 
     def get_top_symbols(self, limit=10, quote_asset="USDT"):
         """
@@ -82,38 +117,9 @@ class BinanceLoader:
             print(f"Error fetching symbols: {e}")
             return ["BTCUSDT", "ETHUSDT", "XRPUSDT"] # Fallback
 
-    def get_data(self, symbol="BTCUSDT", interval="1h", lookback_days=30):
-        # Convert lookback to limit (approx)
-        # 1h = 24 records per day
-        limit = lookback_days * 24 
-        if interval == '1d':
-            limit = lookback_days
-        elif interval == '15m':
-            limit = lookback_days * 24 * 4
-
-        # Basic filename safe string
-        filename = f"{self.cache_dir}/{symbol}_{interval}_{datetime.now().strftime('%Y%m%d')}.csv"
-        
-        # Check cache first (simple daily cache)
-        # For a real app, we might want fresher data, but for dev/demo caching is good.
-        # Here we just fetch fresh for simplicity of "Real-Time" aspect unless explicit offline mode.
-        
-        df = self.fetch_data(symbol, interval, limit=limit)
-        if df is not None:
-             df.to_csv(filename)
-        return df
 
     def clear_cache(self):
         """
-        Removes all files from the cache directory.
+        Removes all OHLCV data from the database.
         """
-        import shutil
-        try:
-            if os.path.exists(self.cache_dir):
-                shutil.rmtree(self.cache_dir)
-                os.makedirs(self.cache_dir)
-                return True
-        except Exception as e:
-            print(f"Error clearing cache: {e}")
-            return False
-        return False
+        return self.db.clear_ohlcv()
