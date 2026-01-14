@@ -32,6 +32,9 @@ class SignalModel:
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
         
+        if len(y_train.unique()) < 2:
+            raise ValueError("Training data contains only one class. Training requires at least two classes (e.g., BUY and HOLD). Try increasing the training lookback or selecting a different coin/interval.")
+
         self.model.fit(X_train, y_train)
         
         preds = self.model.predict(X_test)

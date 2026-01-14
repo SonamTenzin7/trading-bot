@@ -63,6 +63,25 @@ class BinanceLoader:
             print(f"Error fetching top symbols: {e}")
             return ["BTCUSDT", "ETHUSDT", "XRPUSDT"] # Fallback
 
+    def get_all_symbols(self, quote_asset="USDT"):
+        """
+        Fetches all symbols ending with quote_asset.
+        """
+        try:
+            exchange_info = self.client.get_exchange_info()
+            symbols = [
+                s['symbol'] for s in exchange_info['symbols']
+                if s['symbol'].endswith(quote_asset)
+                and s['status'] == 'TRADING'
+                and "UP" not in s['symbol']
+                and "DOWN" not in s['symbol']
+            ]
+            symbols.sort()
+            return symbols
+        except Exception as e:
+            print(f"Error fetching symbols: {e}")
+            return ["BTCUSDT", "ETHUSDT", "XRPUSDT"] # Fallback
+
     def get_data(self, symbol="BTCUSDT", interval="1h", lookback_days=30):
         # Convert lookback to limit (approx)
         # 1h = 24 records per day

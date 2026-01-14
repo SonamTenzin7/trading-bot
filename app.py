@@ -9,64 +9,182 @@ import time
 
 # Page config
 st.set_page_config(page_title="Crypto Bot AI", layout="wide")
+
+# Force Primary Color to Green via CSS
+st.markdown("""
+<style>
+    /* 1. Force Green on all Primary Buttons */
+    button[kind="primary"], .stButton button[kind="primary"] {
+        background-color: #4CAF50 !important;
+        color: white !important;
+        border: none !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #45a049 !important;
+    }
+
+
+    /* 3. Handle Sliders (Neutral track, Green handle/progress) */
+    
+    /* Filled part of the track */
+    [data-baseweb="slider"] div[style*="left: 0%"] {
+        background-color: #4CAF50 !important;
+    }
+    
+    /* Slider Handle (Knob) */
+    [role="slider"] {
+        background-color: #4CAF50 !important;
+        border: 2px solid #4CAF50 !important;
+    }
+
+    /* Unfilled part of the track (Gray) */
+    [data-baseweb="slider"] {
+        background-color: transparent !important;
+    }
+    [data-baseweb="slider"] > div > div {
+        background-color: #f0f2f6 !important;
+    }
+
+    /* 4. Other UI Accents */
+    div[data-baseweb="checkbox"] > div:first-child {
+        background-color: #4CAF50 !important;
+    }
+    .stProgress > div > div > div > div {
+        background-color: #4CAF50 !important;
+    }
+    
+    /* Secondary buttons */
+    button[kind="secondary"] {
+        border-color: #4CAF50 !important;
+        color: #4CAF50 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("AI Crypto Trading Bot - High Risk/Reward")
 
-# Sidebar
-st.sidebar.header("Configuration")
+# --- DISCOVERY & WATCHLIST (Main Page) ---
+if 'loader' not in st.session_state:
+    st.session_state['loader'] = BinanceLoader()
+if 'all_symbols' not in st.session_state:
+    st.session_state['all_symbols'] = st.session_state['loader'].get_all_symbols()
+if 'watchlist' not in st.session_state:
+    st.session_state['watchlist'] = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
 
-# Coin Selection Logic
-base_coins = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "BNBUSDT", "SOLUSDT", "ADAUSDT", "DOGEUSDT"]
-use_trending = st.sidebar.checkbox("Include Top Trending Coins (by Volume)")
+# Top Row: Discovery
+col_d1, col_d2 = st.columns(2)
+with col_d1:
+    with st.expander("🔥 Discover Trending Coins", expanded=False):
+        if 'trending_list' not in st.session_state:
+            st.session_state['trending_list'] = st.session_state['loader'].get_top_symbols(limit=10)
+        
+        st.write("Top Volume (24h):")
+        for symbol_name in st.session_state['trending_list']:
+            c1, c2 = st.columns([3, 1])
+            c1.markdown(f"**{symbol_name}**")
+            if symbol_name not in st.session_state['watchlist']:
+                if c2.button("Add", key=f"main_add_trending_{symbol_name}"):
+                    st.session_state['watchlist'].append(symbol_name)
+                    st.rerun()
+            else:
+                c2.write("✅")
+        
+        if st.button("Refresh Trending",type="primary"):
+            st.session_state['trending_list'] = st.session_state['loader'].get_top_symbols(limit=10)
+            st.rerun()
 
-if use_trending:
-    with st.spinner("Fetching top coins..."):
-        loader = BinanceLoader()
-        trending_coins = loader.get_top_symbols(limit=10)
-        # Merge and dedup
-        coin_options = list(set(base_coins + trending_coins))
-else:
-    coin_options = base_coins
+with col_d2:
+    with st.expander("🔍 Search & Add Any Coin", expanded=False):
+        search_selection = st.selectbox(
+            "Search Binance Symbols", 
+            st.session_state['all_symbols'], 
+            key="main_search_box",
+            index=None,
+            placeholder="Type e.g. PEPE, DOGE..."
+        )
+        if search_selection and search_selection not in st.session_state['watchlist']:
+            if st.button(f"Add {search_selection} to Watchlist", key="main_add_custom"):
+                st.session_state['watchlist'].append(search_selection)
+                st.success(f"Added {search_selection}!")
+                st.rerun()
 
-symbol = st.sidebar.selectbox("Select Coin", coin_options)
-interval = st.sidebar.selectbox("Interval", ["1h", "4h", "1d", "15m"])
-lookback = st.sidebar.slider("Training Days Lookback", 10, 365, 30)
+st.markdown("---")
 
-st.sidebar.header("Risk Management")
-risk_size = st.sidebar.slider("Position Size (%)", 1, 100, 10) / 100
-sl_pct = st.sidebar.slider("Stop Loss (%)", 0.5, 10.0, 2.0) / 100
-tp_pct = st.sidebar.slider("Take Profit (%)", 1.0, 20.0, 5.0) / 100
+# Main Settings Section
+st.subheader("Analysis & Risk Configuration")
+col_c1, col_c2 = st.columns(2)
 
-st.sidebar.header("Data Management")
-if st.sidebar.button("Move data to trash"):
-    loader = BinanceLoader()
-    if loader.clear_cache():
-        st.sidebar.success("Cache Cleared!")
-    else:
-        st.sidebar.error("Failed to clear cache.")
+with col_c1:
+    st.markdown("### Market Analysis")
+    symbol = st.selectbox("Target Coin for Analysis", st.session_state['watchlist'])
+    interval = st.selectbox("Time Interval", ["1h", "4h", "1d", "15m"])
+    lookback = st.slider("Training Days Lookback", 10, 365, 30)
+    sensitivity = st.slider("Signal Sensitivity (%)", 0.1, 5.0, 0.5) / 100
 
-if st.sidebar.button("Fetch Data & Analyze"):
+with col_c2:
+    st.markdown("### Risk Management")
+    risk_size = st.slider("Position Size (%)", 1, 100, 10) / 100
+    sl_pct = st.slider("Stop Loss (%)", 0.5, 10.0, 2.0) / 100
+    tp_pct = st.slider("Take Profit (%)", 1.0, 20.0, 5.0) / 100
+
+# Action Button
+if st.button("Fetch Data & Run AI Prediction", use_container_width=True, type="primary"):
     with st.spinner(f"Analyzing {symbol}..."):
-        loader = BinanceLoader()
+        loader = st.session_state['loader']
         df = loader.get_data(symbol, interval, lookback)
         
         if df is None or df.empty:
             st.error("Failed to fetch data.")
             st.stop()
         
-        # st.success(f"Fetched {len(df)} candles.") # quiet success
-        
     with st.spinner("Calculating indicators..."):
         fe = FeatureEngineer()
         df = fe.add_technical_indicators(df)
-        df = fe.create_labels(df)
+        df = fe.create_labels(df, threshold=sensitivity)
         df.dropna(inplace=True)
         
     with st.spinner("Generating AI Signals..."):
-        model = SignalModel()
-        acc = model.train(df)
-        st.session_state['model'] = model
-        st.session_state['data'] = df
-        st.session_state['accuracy'] = acc
+        try:
+            model = SignalModel()
+            acc = model.train(df)
+            st.session_state['model'] = model
+            st.session_state['data'] = df
+            st.session_state['accuracy'] = acc
+        except ValueError as e:
+            st.error(str(e))
+            st.stop()
+
+# Sidebar (Minimalist)
+import os
+import base64
+
+logo_path = "src/image/logo.jpg"
+if os.path.exists(logo_path):
+    with open(logo_path, "rb") as f:
+        data = f.read()
+        encoded = base64.b64encode(data).decode()
+    
+    st.sidebar.markdown(
+        f"""
+        <div style="display: flex; align-items: center; justify-content: flex-start; margin-bottom: 20px; gap: 12px;">
+            <img src="data:image/jpeg;base64,{encoded}" 
+                 style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #4CAF50;">
+            <div style="display: flex; flex-direction: column; line-height: 1.1;">
+                <span style="font-size: 1.8rem; font-weight: 900; color: #4CAF50; letter-spacing: 1px;">GREEN</span>
+                <span style="font-size: 0.9rem; font-weight: bold; color: #000000; text-transform: uppercase; opacity: 0.8;">Surge Bolt</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+st.sidebar.header("Data Management")
+if st.sidebar.button("Move data to trash"):
+    loader = st.session_state['loader']
+    if loader.clear_cache():
+        st.sidebar.success("Cache Cleared!")
+    else:
+        st.sidebar.error("Failed to clear cache.")
 
 # Main Display
 if 'data' in st.session_state:
@@ -155,4 +273,4 @@ if 'data' in st.session_state:
         st.info("No trades executed in this period based on signals/risk.")
 
 else:
-    st.info("Please Click 'Fetch Data & Train Model' to start.")
+    st.info("Please click 'Fetch Data & Run AI Prediction' above to start.")
