@@ -124,11 +124,26 @@ with st.sidebar:
             st.rerun()
 
     db_type = st.session_state['db'].connection_type if 'db' in st.session_state else "Unknown"
-    status_color = "#4CAF50" if db_type == "MySQL" else "#FFA500"
-    # st.markdown(f"**Storage Engine:** <span style='color:{status_color}; font-weight:bold;'>{db_type}</span>", unsafe_allow_html=True)
+    binance_connected = st.session_state['loader'].connected
     
+    st.header("Connection Status")
+    c_db, c_api = st.columns(2)
+    with c_db:
+        st.metric("DB", db_type, delta=None)
+    with c_api:
+        api_status = "Connected" if binance_connected else "Disconnected"
+        st.metric("Binance API", api_status, delta=None, delta_color="normal" if binance_connected else "inverse")
 
-    # st.markdown("---")
+    if not binance_connected:
+        st.error(f"Binance API is not connected. Check logs for details.")
+        with st.expander("How to fix this?"):
+            st.markdown("""
+            1. **Check Secrets**: Ensure `BINANCE_API_KEY` and `BINANCE_API_SECRET` are set in Streamlit Secrets.
+            2. **Regional Block**: If you are deploying on Streamlit Cloud (US servers), Binance.com may block the connection. Try setting `BINANCE_TLD=us` in your secrets if you have a Binance.US account.
+            3. **API Keys**: Make sure your API keys have 'Read' permissions enabled.
+            """)
+    
+    st.markdown("---")
     st.header("Data Management")
     if st.button("Move data to trash"):
         if st.session_state['loader'].clear_cache():
@@ -214,6 +229,11 @@ if page == "Analysis":
     if st.button("Fetch Data & Run AI Prediction", use_container_width=True, type="primary"):
         with st.spinner(f"Analyzing {symbol}..."):
             loader = st.session_state['loader']
+            
+            if not loader.connected:
+                st.error("Cannot fetch data: Binance API is not connected. See sidebar for details.")
+                st.stop()
+
             df = loader.get_data(symbol, interval, lookback)
             
             if df is None or df.empty:

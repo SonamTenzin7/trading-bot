@@ -7,7 +7,26 @@ from src.database import DatabaseManager
 
 class BinanceLoader:
     def __init__(self, api_key=None, api_secret=None):
-        self.client = Client(api_key, api_secret)
+        # Load from env if not provided
+        self.api_key = api_key or os.getenv("BINANCE_API_KEY")
+        self.api_secret = api_secret or os.getenv("BINANCE_API_SECRET")
+        self.tld = os.getenv("BINANCE_TLD", "com")
+        
+        self.connected = False
+        self.error_message = None
+        
+        try:
+            # Initialize client with optional TLD (e.g., 'us' for binance.us)
+            self.client = Client(self.api_key, self.api_secret, tld=self.tld)
+            # Test connection with a simple ping
+            self.client.ping()
+            self.connected = True
+        except Exception as e:
+            self.connected = False
+            self.error_message = str(e)
+            print(f"FAILED to initialize Binance Client (TLD: {self.tld}): {e}")
+            self.client = None
+
         self.db = DatabaseManager()
 
     def get_data(self, symbol: str, interval: str, lookback_days: int) -> pd.DataFrame:
