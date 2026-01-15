@@ -4,6 +4,9 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.database import DatabaseManager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class BinanceLoader:
     def __init__(self, api_key=None, api_secret=None):

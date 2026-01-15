@@ -135,7 +135,10 @@ with st.sidebar:
     #     st.metric("Binance API", api_status, delta=None, delta_color="normal" if binance_connected else "inverse")
 
     if not binance_connected:
-        st.error(f"Binance API is not connected. Check logs for details.")
+        st.error(f"Binance API is not connected.")
+        if st.session_state['loader'].error_message:
+            st.warning(f"Error: {st.session_state['loader'].error_message}")
+        
         with st.expander("How to fix this?"):
             st.markdown("""
             1. **Check Secrets**: Ensure `BINANCE_API_KEY` and `BINANCE_API_SECRET` are set in Streamlit Secrets.
