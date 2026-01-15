@@ -126,13 +126,13 @@ with st.sidebar:
     db_type = st.session_state['db'].connection_type if 'db' in st.session_state else "Unknown"
     binance_connected = st.session_state['loader'].connected
     
-    st.header("Connection Status")
-    c_db, c_api = st.columns(2)
-    with c_db:
-        st.metric("DB", db_type, delta=None)
-    with c_api:
-        api_status = "Connected" if binance_connected else "Disconnected"
-        st.metric("Binance API", api_status, delta=None, delta_color="normal" if binance_connected else "inverse")
+    # st.header("Connection Status")
+    # c_db, c_api = st.columns(2)
+    # with c_db:
+    #     st.metric("DB", db_type, delta=None)
+    # with c_api:
+    #     api_status = "Connected" if binance_connected else "Disconnected"
+    #     st.metric("Binance API", api_status, delta=None, delta_color="normal" if binance_connected else "inverse")
 
     if not binance_connected:
         st.error(f"Binance API is not connected. Check logs for details.")
@@ -143,7 +143,7 @@ with st.sidebar:
             3. **API Keys**: Make sure your API keys have 'Read' permissions enabled.
             """)
     
-    st.markdown("---")
+    # st.markdown("---")
     st.header("Data Management")
     if st.button("Move data to trash"):
         if st.session_state['loader'].clear_cache():
