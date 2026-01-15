@@ -33,9 +33,11 @@ class FeatureEngineer:
         # Volume Change
         df['volume_change'] = df['volume'].pct_change()
 
-        # Drop NaN caused by indicators
-        # df.dropna(inplace=True) 
-        # Don't drop immediately if we are inferencing on latest candle
+        # Handle Infinity and extremely large values
+        df.replace([np.inf, -np.inf], 0, inplace=True)
+        # Fill missing values from indicators with 0 (safer than dropping for latest candle)
+        df.fillna(0, inplace=True)
+
         return df
 
     def create_labels(self, df: pd.DataFrame, horizon=1, threshold=0.005):

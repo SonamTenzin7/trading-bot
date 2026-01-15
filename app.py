@@ -101,7 +101,7 @@ with st.sidebar:
                      style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #4CAF50;">
                 <div style="display: flex; flex-direction: column; line-height: 1.1;">
                     <span style="font-size: 1.8rem; font-weight: 900; color: #4CAF50; letter-spacing: 1px;">GREEN</span>
-                    <span style="font-size: 0.9rem; font-weight: bold; color: #000000; text-transform: uppercase; opacity: 0.8;">Surge Bolt</span>
+                    <span style="font-size: 0.9rem; font-weight: bold; color: #FFFFFF; text-transform: uppercase; opacity: 0.8;">Surge Bolt</span>
                 </div>
             </div>
             """,

@@ -15,11 +15,23 @@ class SignalModel:
         ]
         self.model_path = "model.joblib"
 
+    def clean_features(self, df):
+        """
+        Hardens data by replacing Inf with 0 and NaN with column means or 0.
+        """
+        import numpy as np
+        data = df.copy()
+        # Replace infinity with 0
+        data.replace([np.inf, -np.inf], 0, inplace=True)
+        # Fill NaN with 0 (safer for classifiers than dropping everything)
+        data.fillna(0, inplace=True)
+        return data
+
     def prepare_data(self, df):
         # Drop rows with NaNs in features
         data = df.dropna(subset=self.feature_cols + ['target']).copy()
         
-        X = data[self.feature_cols]
+        X = self.clean_features(data[self.feature_cols])
         # Map targets: -1->0, 0->1, 1->2
         y = data['target'].map({-1: 0, 0: 1, 1: 2})
         return X, y
@@ -50,9 +62,7 @@ class SignalModel:
         Predicts signal for the latest available data point (or full df).
         Returns dataframe with 'prediction' and 'proba'.
         """
-        data = df[self.feature_cols].copy()
-        # Handle recent NaN if any (fill or drop? if latest is NaN we can't predict)
-        # For safety, let's assuming forward fill or drop.
+        data = self.clean_features(df[self.feature_cols])
         
         # If we just want latest prediction:
         if len(data) == 0:
