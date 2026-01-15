@@ -26,8 +26,12 @@ class BinanceLoader:
             self.connected = True
         except Exception as e:
             self.connected = False
-            self.error_message = str(e)
-            print(f"FAILED to initialize Binance Client (TLD: {self.tld}): {e}")
+            msg = str(e)
+            if "restricted location" in msg.lower():
+                self.error_message = "Restricted Location: Binance.com blocks Streamlit Cloud servers (usually in the US). If you have a Binance.US account, set BINANCE_TLD=us. Otherwise, you may need a different host."
+            else:
+                self.error_message = msg
+            print(f"FAILED to initialize Binance Client (TLD: {self.tld}): {self.error_message}")
             self.client = None
 
         self.db = DatabaseManager()
@@ -53,6 +57,9 @@ class BinanceLoader:
             if days_available >= (lookback_days * 0.8):
                 has_enough = True
         
+        if not self.client:
+            return df_db # Return what we have in DB if client failed
+
         if not has_enough:
             try:
                 klines = self.client.get_historical_klines(symbol, interval, start_str)
@@ -65,7 +72,7 @@ class BinanceLoader:
                 if df_db.empty: return pd.DataFrame()
 
         # 3. If we have enough but it's old, do incremental update
-        if last_ts:
+        if last_ts and self.client:
             now = datetime.utcnow()
             # If last candle is older than the interval, fetch more
             fetch_start = last_ts + timedelta(minutes=1) 
@@ -102,6 +109,9 @@ class BinanceLoader:
         """
         Fetches top symbols by 24h quote volume.
         """
+        if not self.client:
+            return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+            
         try:
             tickers = self.client.get_ticker()
             # Filter for USDT pairs and exclude leveraged tokens (UP/DOWN)
@@ -118,12 +128,15 @@ class BinanceLoader:
             return [t['symbol'] for t in usdt_pairs[:limit]]
         except Exception as e:
             print(f"Error fetching top symbols: {e}")
-            return ["BTCUSDT", "ETHUSDT", "XRPUSDT"] # Fallback
+            return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"] # Fallback
 
     def get_all_symbols(self, quote_asset="USDT"):
         """
         Fetches all symbols ending with quote_asset.
         """
+        if not self.client:
+            return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+
         try:
             exchange_info = self.client.get_exchange_info()
             symbols = [
@@ -137,7 +150,7 @@ class BinanceLoader:
             return symbols
         except Exception as e:
             print(f"Error fetching symbols: {e}")
-            return ["BTCUSDT", "ETHUSDT", "XRPUSDT"] # Fallback
+            return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"] # Fallback
 
 
     def clear_cache(self):

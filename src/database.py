@@ -94,9 +94,9 @@ class DatabaseManager:
                 self.Session = sessionmaker(bind=self.engine)
                 self.connection_type = "MySQL"
                 return True
-            except Exception as e:
-                print(f"MySQL connection attempt {attempt+1} failed: {e}")
-                time.sleep(1) # Wait before retry
+            except Exception:
+                # Silence connection errors to avoid noise on Cloud fallback
+                pass
         return False
 
     def _fallback_to_sqlite(self):
